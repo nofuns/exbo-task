@@ -67,7 +67,7 @@ class TaskExcelRowData {
     private int     details;
     private int     reputation;
     private int     isUsed;
-};
+}
 
 public class ExboTask {
 
@@ -111,7 +111,7 @@ public class ExboTask {
     // Парсим Json
     private <Type> Map<String, Type> parseJson(String filePath, TypeToken typeToken) throws IOException {
         Gson gson = new Gson();
-        Map<String, Type> data = new HashMap<>();
+        Map<String, Type> data;
         JsonReader reader = new JsonReader(new FileReader(filePath));
         data = gson.fromJson(reader, typeToken.getType());
 
@@ -131,7 +131,7 @@ public class ExboTask {
     // Для удобства и упрощения кода создан класс ExcelFileWriter
     private void writeExcel(String resultPath, List<TaskExcelRowData> excelData) {
         try (XSSFWorkbook workbook      = new XSSFWorkbook();
-             FileOutputStream fileOut   = new FileOutputStream(resultPath);) {
+             FileOutputStream fileOut   = new FileOutputStream(resultPath)) {
 
             XSSFSheet sheet             = workbook.createSheet();
             int currentRowIndex    = 0;
