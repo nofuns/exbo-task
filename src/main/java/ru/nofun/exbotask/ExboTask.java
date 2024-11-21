@@ -1,21 +1,10 @@
 package ru.nofun.exbotask;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
 import com.google.gson.reflect.TypeToken;
-import com.google.gson.stream.JsonReader;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
-import org.apache.commons.csv.CSVFormat;
-import org.apache.commons.csv.CSVParser;
 import org.apache.commons.csv.CSVRecord;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.xssf.usermodel.XSSFSheet;
-import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
-import java.io.FileOutputStream;
-import java.io.FileReader;
-import java.io.FileWriter;
 import java.io.IOException;
 import java.util.*;
 
@@ -71,100 +60,31 @@ class TaskExcelRowData {
 
 public class ExboTask {
 
-    Map<String, TaskList>   taskList;
-    Map<String, Task>       taskData;
-    Map<String, Reward>     rewards;
+    Map<String, TaskList> taskList;
+    Map<String, Task> taskData;
+    Map<String, Reward> rewards;
 
 
     ExboTask(String taskListPath, String taskDataPath, String rewardDataPath) throws IOException {
+        JsonParser jsonParser = new JsonParser();
+
         // Парсим json и записываем в виде пар ключ/значение
         // gson для парсинга использует простые классы без конструктора с отрытыми полями, повторяющими структуру json
         // имена полей в этих классах должны совпадать с именами полей в .json
-        taskList = parseJson(taskListPath, new TypeToken<Map<String, TaskList>>() {});
-        taskData = parseJson(taskDataPath, new TypeToken<Map<String, Task>>() {});
+        taskList = jsonParser.parse(taskListPath, new TypeToken<Map<String, TaskList>>() {});
+        taskData = jsonParser.parse(taskDataPath, new TypeToken<Map<String, Task>>() {});
 
         // Парсинг csv в Map<String, Reward> для удобства поиска значений
-        rewards = parseCSV(rewardDataPath); //items.csv
+        rewards = parseRewards(rewardDataPath); //items.csv
     }
 
-    // Парсим CSV
-    private Map<String, Reward> parseCSV(String filePath) throws IOException {
-        Map<String, Reward> parsedRewards = new HashMap<>();
-        FileReader fileReader = new FileReader(filePath);
-        CSVParser parser = CSVParser.parse(fileReader, CSVFormat.DEFAULT);
-
-        // Итерируемся по записям CSV таблицы
-        for (CSVRecord csvRecord : parser) {
-
-            Reward reward = new Reward(
-                    Integer.parseInt(csvRecord.get(1)), // money
-                    Integer.parseInt(csvRecord.get(2)), // details
-                    Integer.parseInt(csvRecord.get(3))  // reputation
-            );
-
-            parsedRewards.put(csvRecord.get(0), reward);
-        }
-
-        return parsedRewards;
-    }
-
-    // Парсим Json
-    private <Type> Map<String, Type> parseJson(String filePath, TypeToken typeToken) throws IOException {
-        Gson gson = new Gson();
-        Map<String, Type> data;
-        JsonReader reader = new JsonReader(new FileReader(filePath));
-        data = gson.fromJson(reader, typeToken.getType());
-
-        return data;
-    }
-
-    // Запись готовых данных в json
-    // В данном случае generic метод, т.к. Gson пользуется специальными классами для записи в файл
-    private <Type> void writeJson(String filePath, Map<String, Type> jsonObject) throws IOException {
-        FileWriter writer = new FileWriter(filePath);
-        Gson gsonBuilder = new GsonBuilder().setPrettyPrinting().create();
-
-        gsonBuilder.toJson(jsonObject, writer);
-    }
-
-    // Запись готовых данных в Excel
-    // Для удобства и упрощения кода создан класс ExcelFileWriter
-    private void writeExcel(String resultPath, List<TaskExcelRowData> excelData) {
-        try (XSSFWorkbook workbook      = new XSSFWorkbook();
-             FileOutputStream fileOut   = new FileOutputStream(resultPath)) {
-
-            XSSFSheet sheet             = workbook.createSheet();
-            int currentRowIndex    = 0;
-
-            for (TaskExcelRowData excelRow : excelData) {
-                // Записываем данные в соответствующие ячейки
-                // Создаем следующую строку в таблице
-                Row currentRow         = sheet.createRow(currentRowIndex);
-                currentRow.createCell(0).setCellValue(excelRow.getListName());
-                currentRow.createCell(1).setCellValue(excelRow.getObjectName());
-                currentRow.createCell(2).setCellValue(excelRow.getRewardKey());
-                currentRow.createCell(3).setCellValue(excelRow.getMoney());
-                currentRow.createCell(4).setCellValue(excelRow.getDetails());
-                currentRow.createCell(5).setCellValue(excelRow.getReputation());
-                currentRow.createCell(6).setCellValue(excelRow.getIsUsed());
-
-                // Для создания новой строки в Excel
-                currentRowIndex++;
-            }
-
-            workbook.write(fileOut);
-        } catch (IOException e) {
-            throw new RuntimeException("Cannot open file: " + resultPath, e);
-        }
-    }
-
-    ///////////////////////////////////////
-    public void doTask1(String resultPath) {
+    public void doFirstTask(String resultPath) {
         /*
         ЗАДАНИЕ 1.
         */
 
-        // Отсеиваем повторяющиеся objectName, таким образом получаем контракты, которые точно используются в list в task.json
+        // Отсеиваем повторяющиеся objectName
+        // таким образом получаем контракты, которые точно используются в list в task.json
         Set<String> uniqueTasksFromList = new HashSet<>();
         for (TaskList tasks : taskList.values()) {
             uniqueTasksFromList.addAll(tasks.getList());
@@ -191,14 +111,10 @@ public class ExboTask {
         }
 
         // Записываем результат в .json
-        try {
-            writeJson(resultPath, result);
-        } catch (IOException e) {
-            throw new RuntimeException("Cannot write to file: " + resultPath, e);
-        }
+        writeJson(resultPath, result);
     }
 
-    public void doTask2(String resultPath) {
+    public void doSecondTask(String resultPath) {
         /*
         ЗАДАНИЕ 2.
         */
@@ -210,7 +126,6 @@ public class ExboTask {
 
             // Итерируемся по list
             for (String objectName : lst) {
-                // Собираем нужные данные из распаршеных файлов
                 String listName = entry.getKey();
                 String rewardKey = taskData.get(objectName).getReward();
 
@@ -224,10 +139,8 @@ public class ExboTask {
             }
         }
 
-        // Сначала сортируем данные, т.к. после выполнения следующей части задания появятся пустые поля("")
-        excelData.sort(Comparator.comparing(TaskExcelRowData::getListName));
-
-        // Ищем reward_key, которые не упоминаются в file.json и добавляем их в конец списка, list_name и object_name оставляем пустыми
+        // Ищем reward_key, которые не упоминаются в file.json
+        // Добавляем их в конец списка, list_name и object_name оставляем пустыми
         for (Map.Entry<String, Reward> entry : rewards.entrySet()) {
             String rewardKey = entry.getKey();
             boolean found = false;
@@ -237,26 +150,77 @@ public class ExboTask {
                     break;
                 }
             }
-
             // если reward_key не упоминается в taskData(file.json), записываем его в таблицу
             if(!found) {
-                /* В данном случае нам нужны только данные из Reward
-                    listName и objectName остаются пустыми при записи в таблице
-                    Можно заменить на null */
-                String listName     = "";
-                String objectName   = "";
+                String listName = "";
+                String objectName = "";
 
-                Reward reward   = rewards.get(rewardKey);
-                int money       = reward.getMoney();
-                int details     = reward.getDetails();
-                int reputation  = reward.getReputation();
-                int isUsed      = 0;
+                Reward reward = rewards.get(rewardKey);
+                int money = reward.getMoney();
+                int details = reward.getDetails();
+                int reputation = reward.getReputation();
+                int isUsed = 0;
 
                 excelData.add(new TaskExcelRowData(listName, objectName, rewardKey, money, details, reputation, isUsed));
             }
         }
 
+        // Сортируем полученные данные
+        excelData.sort(Comparator.comparing(TaskExcelRowData::getListName));
+
         // Записываем таблицу в .xlsx
         writeExcel(resultPath, excelData);
+    }
+
+    // Парсинг CSV таблицы
+    Map<String, Reward> parseRewards(String filePath) throws IOException {
+        Map<String, Reward> parsedRewards = new HashMap<>();
+        CsvParser csvParser = new CsvParser(filePath);
+        for (CSVRecord csvRecord : csvParser) {
+            List<String> record = csvParser.toList(csvRecord);
+
+            Reward reward = new Reward(
+                    Integer.parseInt(record.get(1)), // money
+                    Integer.parseInt(record.get(2)), // details
+                    Integer.parseInt(record.get(3))  // reputation
+            );
+
+            parsedRewards.put(record.get(0), reward);
+        }
+
+        return parsedRewards;
+    }
+
+    // Запись готовых данных в json
+    // В данном случае generic метод, т.к. Gson пользуется специальными классами для записи в файл
+    private <Type> void writeJson(String filePath, Map<String, Type> jsonObject) {
+        try (JsonWriter jsonWriter = new JsonWriter(filePath)) {
+            jsonWriter.write(jsonObject);
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot open file: " + filePath, e);
+        }
+    }
+
+    // Запись готовых данных в Excel
+    private void writeExcel(String resultPath, List<TaskExcelRowData> excelData) {
+        try ( ExcelFileWriter excelFileWriter = new ExcelFileWriter(resultPath)) {
+            for (TaskExcelRowData excelRow : excelData) {
+                // Записываем данные в соответствующие ячейки
+                excelFileWriter.setCellInCurrentRow(0, excelRow.getListName());
+                excelFileWriter.setCellInCurrentRow(1, excelRow.getObjectName());
+                excelFileWriter.setCellInCurrentRow(2, excelRow.getRewardKey());
+                excelFileWriter.setCellInCurrentRow(3, excelRow.getMoney());
+                excelFileWriter.setCellInCurrentRow(4, excelRow.getDetails());
+                excelFileWriter.setCellInCurrentRow(5, excelRow.getReputation());
+                excelFileWriter.setCellInCurrentRow(6, excelRow.getIsUsed());
+
+                // Создаем следующую строку в таблице
+                excelFileWriter.createNextRow();
+            }
+
+            excelFileWriter.writeToFile();
+        } catch (IOException e) {
+            throw new RuntimeException("Cannot open file: " + resultPath, e);
+        }
     }
 }

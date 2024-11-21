@@ -10,8 +10,8 @@ public class Main {
                     "data/file.json",
                     "data/items.csv"
             );
-            exboTask.doTask1("data/result.json");
-            exboTask.doTask2("data/result.xlsx");
+            exboTask.doFirstTask("data/result.json");
+            exboTask.doSecondTask("data/result.xlsx");
 
         } catch (IOException e) {
             throw new RuntimeException(e);
